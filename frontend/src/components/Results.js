@@ -1,56 +1,27 @@
-import React from 'react';
+// frontend/src/App.js
+import React, { useState } from 'react';
+import UploadForm from './UploadForm';  // Correct: same directory
+import Results from './Results';
+// import '../App.css';  // Correct path from components/ to src/
 
-const Results = ({ result }) => {
-    if (!result) return null;
+function App() {
+    const [result, setResult] = useState(null);
+
+    const handleResult = (data) => setResult(data);
 
     return (
-        <div className="card results">
-            <h2>ATS Analysis Results</h2>
-            <div className="ats-score">
-                ATS Score: {result.ats_score}/100
+        <div className="App">
+            <h1>AI Resume Analyzer</h1>
+            <div className="form-container">
+                <UploadForm onResult={handleResult} />
             </div>
-            <h3>Recommendations:</h3>
-            {result.recommendations?.length > 0 ? (
-                <ul className="recommendation-list">
-                    {result.recommendations.map((rec, index) => (
-                        <li key={index} className="recommendation-item">{rec}</li>
-                    ))}
-                </ul>
-            ) : (
-                <p>No recommendations available.</p>
-            )}
-            <h3>Missing Keywords:</h3>
-            {result.missing_keywords?.length > 0 ? (
-                <ul className="recommendation-list">
-                    {result.missing_keywords.map((keyword, index) => (
-                        <li key={index} className="recommendation-item">{keyword}</li>
-                    ))}
-                </ul>
-            ) : (
-                <p>No missing keywords.</p>
-            )}
-            <h3>Missing Skills:</h3>
-            {result.missing_skills?.length > 0 ? (
-                <ul className="recommendation-list">
-                    {result.missing_skills.map((skill, index) => (
-                        <li key={index} className="recommendation-item">{skill}</li>
-                    ))}
-                </ul>
-            ) : (
-                <p>No missing skills.</p>
-            )}
-            <h3>Missing Entities:</h3>
-            {result.missing_entities?.length > 0 ? (
-                <ul className="recommendation-list">
-                    {result.missing_entities.map((entity, index) => (
-                        <li key={index} className="recommendation-item">{entity}</li>
-                    ))}
-                </ul>
-            ) : (
-                <p>No missing entities.</p>
+            {result && (
+                <div className="results-container">
+                    <Results result={result} />
+                </div>
             )}
         </div>
     );
-};
+}
 
-export default Results;
+export default App;

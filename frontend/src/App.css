@@ -278,3 +278,25 @@ body {
       padding: 10px;
   }
 }
+.sub-scores {
+  margin: 10px 0;
+  font-size: 1.1em;
+}
+
+.download-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.download-button:hover {
+  background-color: #218838;
+}
+
+.input-type-toggle label {
+  margin-right: 15px;
+}

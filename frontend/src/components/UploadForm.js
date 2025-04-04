@@ -5,7 +5,8 @@ const UploadForm = ({ onResult }) => {
     const [resume, setResume] = useState(null);
     const [jobDescriptionFile, setJobDescriptionFile] = useState(null);
     const [jobDescriptionText, setJobDescriptionText] = useState('');
-    const [jobDescriptionInputType, setJobDescriptionInputType] = useState('file'); // 'file' or 'text'
+    const [jobUrl, setJobUrl] = useState(''); // New state for job URL
+    const [jobDescriptionInputType, setJobDescriptionInputType] = useState('file'); // 'file', 'text', or 'url'
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -23,6 +24,10 @@ const UploadForm = ({ onResult }) => {
             setError('Please enter the job description text.');
             return;
         }
+        if (jobDescriptionInputType === 'url' && !jobUrl.trim()) {
+            setError('Please enter a job URL.');
+            return;
+        }
 
         setLoading(true);
         setError(null);
@@ -31,8 +36,10 @@ const UploadForm = ({ onResult }) => {
         formData.append('resume', resume);
         if (jobDescriptionInputType === 'file') {
             formData.append('jobDescription', jobDescriptionFile);
-        } else {
+        } else if (jobDescriptionInputType === 'text') {
             formData.append('jobDescriptionText', jobDescriptionText);
+        } else if (jobDescriptionInputType === 'url') {
+            formData.append('jobUrl', jobUrl);
         }
 
         try {
@@ -41,7 +48,7 @@ const UploadForm = ({ onResult }) => {
             });
             onResult(response.data);
         } catch (err) {
-            setError('An error occurred while processing your request.');
+            setError(err.response?.data?.error || 'An error occurred while processing your request.');
         } finally {
             setLoading(false);
         }
@@ -81,6 +88,15 @@ const UploadForm = ({ onResult }) => {
                             />
                             Paste Text
                         </label>
+                        <label>
+                            <input
+                                type="radio"
+                                value="url"
+                                checked={jobDescriptionInputType === 'url'}
+                                onChange={() => setJobDescriptionInputType('url')}
+                            />
+                            Job URL
+                        </label>
                     </div>
                 </div>
                 {jobDescriptionInputType === 'file' ? (
@@ -93,7 +109,7 @@ const UploadForm = ({ onResult }) => {
                             className="form-input"
                         />
                     </div>
-                ) : (
+                ) : jobDescriptionInputType === 'text' ? (
                     <div className="form-group">
                         <label>Job Description (Text):</label>
                         <textarea
@@ -102,6 +118,17 @@ const UploadForm = ({ onResult }) => {
                             className="form-textarea"
                             placeholder="Paste the job description here..."
                             rows="5"
+                        />
+                    </div>
+                ) : (
+                    <div className="form-group">
+                        <label>Job URL:</label>
+                        <input
+                            type="text"
+                            value={jobUrl}
+                            onChange={(e) => setJobUrl(e.target.value)}
+                            className="form-input"
+                            placeholder="Enter job posting URL (e.g., LinkedIn, Indeed)"
                         />
                     </div>
                 )}
