@@ -8,4 +8,4 @@ requests
 beautifulsoup4
 werkzeug
 gunicorn
-torch==2.6.0 --find-links https://download.pytorch.org/whl/cpu/torch_stable.html
+https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp311-cp311-linux_x86_64.whl
