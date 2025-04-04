@@ -1,0 +1,13 @@
+{
+    "name": "ai-resume-analyzer",
+    "version": "1.0.0",
+    "scripts": {
+      "heroku-prebuild": "cd frontend && npm install",
+      "build": "cd frontend && npm run build",
+      "start": "cd backend && gunicorn app:app"
+    },
+    "engines": {
+      "node": "18.x",
+      "npm": "9.x"
+    }
+  }
