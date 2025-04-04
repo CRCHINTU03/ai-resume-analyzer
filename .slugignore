@@ -5,3 +5,6 @@ backend/uploads/
 __pycache__/
 .git/
 .gitignore
+*.md
+*.txt
+tests/

@@ -3,9 +3,8 @@ flask-cors
 spacy
 scikit-learn
 sentence-transformers
-reportlab
 requests
-beautifulsoup4
 werkzeug
 gunicorn
+transformers==4.41.0  # Pin to a smaller version
 https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp311-cp311-linux_x86_64.whl
