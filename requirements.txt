@@ -1,0 +1,10 @@
+flask
+flask-cors
+spacy
+scikit-learn
+sentence-transformers
+reportlab
+requests
+beautifulsoup4
+werkzeug
+gunicorn
