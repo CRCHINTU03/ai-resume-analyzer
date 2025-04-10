@@ -9,10 +9,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph
 from werkzeug.utils import secure_filename
 from extract_text import extract_text
 from ats_score01 import compute_ats_score
-import spacy
-import torch
-from transformers import AutoModel, AutoTokenizer
-from sentence_transformers import SentenceTransformer
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a',
@@ -24,53 +20,40 @@ CORS(app)
 
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload size
 
-# Directory for temporary files and model cache
 UPLOAD_FOLDER = 'uploads'
-CACHE_DIR = '/tmp/models'  # Use /tmp for Heroku ephemeral storage
+CACHE_DIR = '/tmp/models'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(CACHE_DIR, exist_ok=True)
 
-# Lazy-loaded models (initialized on first use)
-class ModelLoader:
-    _nlp = None
-    _transformer_model = None
-    _transformer_tokenizer = None
-    _sentence_model = None
+# Model loading functions (no imports at top level)
+def load_nlp():
+    import spacy
+    try:
+        logger.info("Downloading spaCy model 'en_core_web_sm'")
+        spacy.cli.download("en_core_web_sm")
+        return spacy.load("en_core_web_sm")
+    except Exception as e:
+        logger.error(f"Failed to load spaCy model: {str(e)}")
+        raise
 
-    @staticmethod
-    def get_nlp():
-        if ModelLoader._nlp is None:
-            try:
-                logger.info("Downloading spaCy model 'en_core_web_sm'")
-                spacy.cli.download("en_core_web_sm")
-                ModelLoader._nlp = spacy.load("en_core_web_sm")
-            except Exception as e:
-                logger.error(f"Failed to load spaCy model: {str(e)}")
-                raise
-        return ModelLoader._nlp
+def load_transformer():
+    from transformers import AutoModel, AutoTokenizer
+    try:
+        logger.info("Downloading transformer model 'bert-base-uncased'")
+        model = AutoModel.from_pretrained("bert-base-uncased", cache_dir=CACHE_DIR)
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", cache_dir=CACHE_DIR)
+        return model, tokenizer
+    except Exception as e:
+        logger.error(f"Failed to load transformer model: {str(e)}")
+        raise
 
-    @staticmethod
-    def get_transformer():
-        if ModelLoader._transformer_model is None or ModelLoader._transformer_tokenizer is None:
-            try:
-                logger.info("Downloading transformer model 'bert-base-uncased'")
-                ModelLoader._transformer_model = AutoModel.from_pretrained("bert-base-uncased", cache_dir=CACHE_DIR)
-                ModelLoader._transformer_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", cache_dir=CACHE_DIR)
-            except Exception as e:
-                logger.error(f"Failed to load transformer model: {str(e)}")
-                raise
-        return ModelLoader._transformer_model, ModelLoader._transformer_tokenizer
-
-    @staticmethod
-    def get_sentence_transformer():
-        if ModelLoader._sentence_model is None:
-            try:
-                logger.info("Downloading sentence-transformer model 'all-MiniLM-L6-v2'")
-                ModelLoader._sentence_model = SentenceTransformer("all-MiniLM-L6-v2", cache_dir=CACHE_DIR)
-            except Exception as e:
-                logger.error(f"Failed to load sentence-transformer model: {str(e)}")
-                raise
-        return ModelLoader._sentence_model
+def load_sentence_transformer():
+    from sentence_transformers import SentenceTransformer
+    try:
+        logger.info("Downloading sentence-transformer model 'all-MiniLM-L6-v2'")
+        return SentenceTransformer("all-MiniLM-L6-v2", cache_dir=CACHE_DIR)
+    except Exception as e:
+        logger.error(f"Failed to load sentence-transformer model: {str(e)}")
+        raise
 
 @app.route('/')
 def serve():
@@ -83,7 +66,6 @@ def serve_static(path):
     return send_from_directory(app.static_folder, path)
 
 def scrape_job(url):
-    """Scrape job description from a URL."""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         response = requests.get(url, headers=headers, timeout=10)
@@ -98,7 +80,6 @@ def scrape_job(url):
 @app.route('/upload', methods=['POST'])
 def upload():
     try:
-        # Check for resume file
         if 'resume' not in request.files:
             logger.error("Missing resume file in request")
             return jsonify({'error': 'Resume file is required'}), 400
@@ -111,12 +92,10 @@ def upload():
             logger.error("Empty or invalid resume file submitted")
             return jsonify({'error': 'Empty or invalid resume file submitted'}), 400
 
-        # Validate job description input
         if not job_description_text and 'jobDescription' not in request.files and not job_url:
             logger.error("Missing job description (file, text, or URL)")
             return jsonify({'error': 'Job description (file, text, or URL) is required'}), 400
 
-        # Save and process resume
         resume_path = os.path.join(UPLOAD_FOLDER, secure_filename(resume_file.filename))
         logger.info(f"Saving resume file: {resume_path}")
         resume_file.save(resume_path)
@@ -126,7 +105,6 @@ def upload():
             os.remove(resume_path)
             return jsonify({'error': 'Unable to extract text from resume'}), 400
 
-        # Process job description
         if job_url:
             logger.info(f"Scraping job description from URL: {job_url}")
             job_text = scrape_job(job_url)
@@ -153,13 +131,11 @@ def upload():
             os.remove(resume_path)
             return jsonify({'error': 'Unable to extract text from job description'}), 400
 
-        # Load models and compute ATS score
         logger.info("Loading models and computing ATS score")
-        nlp = ModelLoader.get_nlp()
-        transformer_model, transformer_tokenizer = ModelLoader.get_transformer()
-        sentence_model = ModelLoader.get_sentence_transformer()
+        nlp = load_nlp()
+        transformer_model, transformer_tokenizer = load_transformer()
+        sentence_model = load_sentence_transformer()
 
-        # Pass models to compute_ats_score (assumes it accepts these as kwargs)
         ats_result = compute_ats_score(
             resume_text,
             job_text,
@@ -169,7 +145,6 @@ def upload():
             sentence_model=sentence_model
         )
 
-        # Clean up
         logger.info("Cleaning up temporary files")
         os.remove(resume_path)
 
@@ -187,7 +162,6 @@ def download_report():
             logger.error("No ATS result provided for download")
             return jsonify({'error': 'No analysis result provided'}), 400
 
-        # Generate PDF
         pdf_path = os.path.join(UPLOAD_FOLDER, 'ats_report.pdf')
         pdf = SimpleDocTemplate(pdf_path, pagesize=letter)
         story = [
