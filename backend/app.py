@@ -15,6 +15,21 @@ logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Log dependency versions at startup
+def log_dependency_versions():
+    import pkg_resources
+    dependencies = ['torch', 'spacy', 'sentence_transformers', 'transformers', 'torchvision', 'nltk', 'sentencepiece']
+    for dep in dependencies:
+        try:
+            version = pkg_resources.get_distribution(dep).version
+            logger.info(f"Dependency {dep} version: {version}")
+        except pkg_resources.DistributionNotFound:
+            logger.info(f"Dependency {dep} not installed")
+
+log_dependency_versions()
+
+# Rest of app.py remains unchanged...
+
 app = Flask(__name__, static_folder='../frontend/build/static', template_folder='../frontend/build')
 CORS(app)
 
