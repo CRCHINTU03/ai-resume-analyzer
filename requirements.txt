@@ -2,7 +2,7 @@ flask
 flask-cors
 spacy>=3.8.5
 scikit-learn
-sentence-transformers
+sentence-transformers==2.2.2  # Older version, smaller footprint (~300KB)
 requests
 werkzeug
 gunicorn
