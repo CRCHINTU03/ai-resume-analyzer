@@ -1,29 +1,20 @@
-import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
-from sentence_transformers import SentenceTransformer, util
 from collections import Counter
 
-# Load models
-nlp = spacy.load("en_core_web_sm")
-bert_model = SentenceTransformer('all-MiniLM-L6-v2')
-
-def extract_keywords(text):
+def extract_keywords(text, nlp):
     doc = nlp(text.lower())
     keywords = []
     
-    # Extract single-word keywords (nouns, verbs, adjectives)
     for token in doc:
         if not token.is_stop and not token.is_punct and token.pos_ in ["NOUN", "VERB", "ADJ"]:
             keywords.append(token.lemma_)
     
-    # Extract multi-word phrases (noun chunks)
     for chunk in doc.noun_chunks:
         if not all(token.is_stop or token.is_punct for token in chunk):
             keywords.append(chunk.text.lower())
     
-    # Add synonyms for key terms (e.g., "coding" -> "programming")
     synonyms = {
         "coding": ["programming", "development"],
         "data": ["analytics", "information"],
@@ -38,8 +29,7 @@ def extract_keywords(text):
     
     return list(set(expanded_keywords))
 
-def extract_skills(text):
-    # Expanded list of common skills/tools for iCIMS compatibility
+def extract_skills(text, nlp):
     common_skills = [
         "python", "java", "javascript", "sql", "machine learning", "data analysis",
         "aws", "azure", "docker", "kubernetes", "tensorflow", "pytorch",
@@ -49,13 +39,11 @@ def extract_skills(text):
     doc = nlp(text.lower())
     skills = []
     
-    # Check for skills in text (including comma-separated lists)
     text_words = re.split(r'[,\s]+', text.lower())
     for skill in common_skills:
         if skill in text or skill in text_words:
             skills.append(skill)
     
-    # Check noun chunks for multi-word skills
     for chunk in doc.noun_chunks:
         chunk_text = chunk.text.lower()
         for skill in common_skills:
@@ -64,7 +52,7 @@ def extract_skills(text):
     
     return list(set(skills))
 
-def extract_entities(text):
+def extract_entities(text, nlp):
     doc = nlp(text)
     entities = []
     for ent in doc.ents:
@@ -73,11 +61,9 @@ def extract_entities(text):
     return list(set(entities))
 
 def extract_experience(text):
-    # Enhanced regex for experience (e.g., "5 years", "3+ years", "2018-2023")
     year_pattern = r'(\d+\+?)\s*(years?|yrs?)\s*(of)?\s*experience'
     range_pattern = r'(\d{4})\s*[-–]\s*(\d{4})'
     
-    # Extract years from "X years" format
     year_matches = re.findall(year_pattern, text.lower())
     total_years = 0
     for match in year_matches:
@@ -87,7 +73,6 @@ def extract_experience(text):
         except ValueError:
             continue
     
-    # Extract years from date ranges (e.g., "2018-2023")
     range_matches = re.findall(range_pattern, text.lower())
     for start, end in range_matches:
         try:
@@ -98,18 +83,18 @@ def extract_experience(text):
     
     return total_years
 
-def compute_ats_score(resume_text, job_text):
+def compute_ats_score(resume_text, job_text, nlp, transformer_model=None, transformer_tokenizer=None, sentence_model=None):
     # Extract features
-    resume_keywords = extract_keywords(resume_text)
-    job_keywords = extract_keywords(job_text)
-    resume_skills = extract_skills(resume_text)
-    job_skills = extract_skills(job_text)
-    resume_entities = extract_entities(resume_text)
-    job_entities = extract_entities(job_text)
+    resume_keywords = extract_keywords(resume_text, nlp)
+    job_keywords = extract_keywords(job_text, nlp)
+    resume_skills = extract_skills(resume_text, nlp)
+    job_skills = extract_skills(job_text, nlp)
+    resume_entities = extract_entities(resume_text, nlp)
+    job_entities = extract_entities(job_text, nlp)
 
     # Compute BERT semantic similarity
-    resume_embedding = bert_model.encode(resume_text, convert_to_tensor=True)
-    job_embedding = bert_model.encode(job_text, convert_to_tensor=True)
+    resume_embedding = sentence_model.encode(resume_text, convert_to_tensor=True)
+    job_embedding = sentence_model.encode(job_text, convert_to_tensor=True)
     bert_score = util.cos_sim(resume_embedding, job_embedding).item() * 100
 
     # TF-IDF for keyword importance
@@ -119,7 +104,7 @@ def compute_ats_score(resume_text, job_text):
     tfidf_scores = tfidf_matrix.toarray()[0]
     keyword_importance = dict(zip(feature_names, tfidf_scores))
 
-    # Missing keywords and skills with importance
+    # Missing keywords and skills
     missing_keywords = []
     for kw in job_keywords:
         if kw not in resume_keywords:
@@ -132,35 +117,35 @@ def compute_ats_score(resume_text, job_text):
 
     missing_entities = [ent for ent in job_entities if ent not in resume_entities]
 
-    # Keyword score via TF-IDF cosine similarity
+    # Keyword score
     tfidf_matrix = vectorizer.fit_transform([resume_text, job_text])
     keyword_score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0] * 100
 
-    # Experience score with recency consideration
+    # Experience score
     resume_years = extract_experience(resume_text)
     job_years = extract_experience(job_text)
     if job_years > 0:
         experience_score = min(resume_years / job_years, 1.0) * 100
     else:
-        experience_score = 100 if resume_years > 0 else 50  # Neutral if unspecified
+        experience_score = 100 if resume_years > 0 else 50
 
-    # Weighted ATS score (adjusted for iCIMS emphasis on skills and keywords)
+    # Weighted ATS score
     ats_score = (keyword_score * 0.35) + (bert_score * 0.25) + (skills_score * 0.25) + (experience_score * 0.15)
 
-    # iCIMS-friendly recommendations
+    # Recommendations
     recommendations = []
     if missing_keywords:
-        recommendations.append("Incorporate these high-priority keywords into your resume (e.g., in skills, summary, or experience):")
+        recommendations.append("Incorporate these high-priority keywords into your resume:")
         for kw in missing_keywords:
             recommendations.append(f"- {kw}")
     if missing_skills:
-        recommendations.append("Add these skills in a dedicated 'Skills' section or within experience descriptions:")
+        recommendations.append("Add these skills in a 'Skills' section or experience:")
         for skill in missing_skills:
             recommendations.append(f"- {skill}")
     if resume_years < job_years:
-        recommendations.append(f"The job requires {job_years} years of experience, but your resume shows {resume_years}. Highlight more relevant experience if possible.")
+        recommendations.append(f"Job requires {job_years} years; you show {resume_years}. Add more experience.")
     if not missing_keywords and not missing_skills:
-        recommendations.append("Your resume aligns well with the job. Enhance it with specific achievements (e.g., 'Increased sales by 20%') for better impact.")
+        recommendations.append("Resume aligns well. Add achievements (e.g., 'Increased sales by 20%').")
 
     return {
         "ats_score": round(ats_score, 2),
@@ -171,9 +156,3 @@ def compute_ats_score(resume_text, job_text):
         "experience_score": round(experience_score, 2),
         "recommendations": recommendations
     }
-
-# Example usage (uncomment to test)
-# resume = "Experienced Python developer with 5 years of experience in data analysis and AWS."
-# job = "Seeking a Python developer with 7 years of experience in machine learning, AWS, and agile."
-# result = compute_ats_score(resume, job)
-# print(result)

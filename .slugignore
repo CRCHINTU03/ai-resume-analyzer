@@ -12,4 +12,5 @@ tests/
 *.log
 *.DS_Store
 /tmp/
-node_modules/  # Root-level node_modules if present
+node_modules/
+slug.tar.gz  # Explicitly exclude

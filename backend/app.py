@@ -35,17 +35,6 @@ def load_nlp():
         logger.error(f"Failed to load spaCy model: {str(e)}")
         raise
 
-def load_transformer():
-    from transformers import AutoModel, AutoTokenizer
-    try:
-        logger.info("Downloading transformer model 'bert-base-uncased'")
-        model = AutoModel.from_pretrained("bert-base-uncased", cache_dir=CACHE_DIR)
-        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", cache_dir=CACHE_DIR)
-        return model, tokenizer
-    except Exception as e:
-        logger.error(f"Failed to load transformer model: {str(e)}")
-        raise
-
 def load_sentence_transformer():
     from sentence_transformers import SentenceTransformer
     try:
@@ -133,15 +122,12 @@ def upload():
 
         logger.info("Loading models and computing ATS score")
         nlp = load_nlp()
-        transformer_model, transformer_tokenizer = load_transformer()
         sentence_model = load_sentence_transformer()
 
         ats_result = compute_ats_score(
             resume_text,
             job_text,
             nlp=nlp,
-            transformer_model=transformer_model,
-            transformer_tokenizer=transformer_tokenizer,
             sentence_model=sentence_model
         )
 
