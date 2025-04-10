@@ -3,8 +3,8 @@ flask-cors
 spacy>=3.8.5
 scikit-learn
 sentence-transformers==2.2.2
-transformers==4.18.0
-tokenizers==0.13.3  # Prebuilt wheel
+transformers==4.20.1  # Supports tokenizers>=0.13.0
+tokenizers==0.13.3    # Prebuilt wheel
 requests
 werkzeug
 gunicorn
