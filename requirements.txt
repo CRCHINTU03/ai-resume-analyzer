@@ -1,10 +1,10 @@
 flask
 flask-cors
-spacy
+spacy>=3.8.5
 scikit-learn
 sentence-transformers
 requests
 werkzeug
 gunicorn
-transformers==4.41.0  # Pin to a smaller version
-https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp311-cp311-linux_x86_64.whl
+transformers==4.41.0
+torch==2.6.0  # Smaller base install, no prebundled weights

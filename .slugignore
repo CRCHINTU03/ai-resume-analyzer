@@ -1,5 +1,6 @@
 frontend/node_modules/
-frontend/build/
+frontend/build/static/js/*.map  # Source maps are huge
+frontend/build/static/css/*.map
 backend/uploads/
 *.pyc
 __pycache__/
@@ -7,3 +8,5 @@ __pycache__/
 .gitignore
 *.md
 tests/
+*.log
+*. DS_Store

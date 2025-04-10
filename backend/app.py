@@ -6,9 +6,13 @@ import requests
 from bs4 import BeautifulSoup
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph
-from werkzeug.utils import secure_filename  # Added this import
+from werkzeug.utils import secure_filename
 from extract_text import extract_text
 from ats_score01 import compute_ats_score
+import spacy
+import torch
+from transformers import AutoModel, AutoTokenizer
+from sentence_transformers import SentenceTransformer
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a',
@@ -20,9 +24,53 @@ CORS(app)
 
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload size
 
-# Directory for temporary files
+# Directory for temporary files and model cache
 UPLOAD_FOLDER = 'uploads'
+CACHE_DIR = '/tmp/models'  # Use /tmp for Heroku ephemeral storage
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+# Lazy-loaded models (initialized on first use)
+class ModelLoader:
+    _nlp = None
+    _transformer_model = None
+    _transformer_tokenizer = None
+    _sentence_model = None
+
+    @staticmethod
+    def get_nlp():
+        if ModelLoader._nlp is None:
+            try:
+                logger.info("Downloading spaCy model 'en_core_web_sm'")
+                spacy.cli.download("en_core_web_sm")
+                ModelLoader._nlp = spacy.load("en_core_web_sm")
+            except Exception as e:
+                logger.error(f"Failed to load spaCy model: {str(e)}")
+                raise
+        return ModelLoader._nlp
+
+    @staticmethod
+    def get_transformer():
+        if ModelLoader._transformer_model is None or ModelLoader._transformer_tokenizer is None:
+            try:
+                logger.info("Downloading transformer model 'bert-base-uncased'")
+                ModelLoader._transformer_model = AutoModel.from_pretrained("bert-base-uncased", cache_dir=CACHE_DIR)
+                ModelLoader._transformer_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", cache_dir=CACHE_DIR)
+            except Exception as e:
+                logger.error(f"Failed to load transformer model: {str(e)}")
+                raise
+        return ModelLoader._transformer_model, ModelLoader._transformer_tokenizer
+
+    @staticmethod
+    def get_sentence_transformer():
+        if ModelLoader._sentence_model is None:
+            try:
+                logger.info("Downloading sentence-transformer model 'all-MiniLM-L6-v2'")
+                ModelLoader._sentence_model = SentenceTransformer("all-MiniLM-L6-v2", cache_dir=CACHE_DIR)
+            except Exception as e:
+                logger.error(f"Failed to load sentence-transformer model: {str(e)}")
+                raise
+        return ModelLoader._sentence_model
 
 @app.route('/')
 def serve():
@@ -41,7 +89,6 @@ def scrape_job(url):
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        # Generic selector; adjust for specific sites if needed
         job_text = soup.find('div', class_='job-description') or soup.find('section', class_='description')
         return job_text.get_text(strip=True) if job_text else "Unable to scrape job description."
     except Exception as e:
@@ -64,7 +111,7 @@ def upload():
             logger.error("Empty or invalid resume file submitted")
             return jsonify({'error': 'Empty or invalid resume file submitted'}), 400
 
-        # Validate job description input (text, file, or URL)
+        # Validate job description input
         if not job_description_text and 'jobDescription' not in request.files and not job_url:
             logger.error("Missing job description (file, text, or URL)")
             return jsonify({'error': 'Job description (file, text, or URL) is required'}), 400
@@ -106,9 +153,21 @@ def upload():
             os.remove(resume_path)
             return jsonify({'error': 'Unable to extract text from job description'}), 400
 
-        # Compute ATS score
-        logger.info("Computing ATS score")
-        ats_result = compute_ats_score(resume_text, job_text)
+        # Load models and compute ATS score
+        logger.info("Loading models and computing ATS score")
+        nlp = ModelLoader.get_nlp()
+        transformer_model, transformer_tokenizer = ModelLoader.get_transformer()
+        sentence_model = ModelLoader.get_sentence_transformer()
+
+        # Pass models to compute_ats_score (assumes it accepts these as kwargs)
+        ats_result = compute_ats_score(
+            resume_text,
+            job_text,
+            nlp=nlp,
+            transformer_model=transformer_model,
+            transformer_tokenizer=transformer_tokenizer,
+            sentence_model=sentence_model
+        )
 
         # Clean up
         logger.info("Cleaning up temporary files")
