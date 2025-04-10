@@ -3,7 +3,7 @@ flask-cors
 spacy>=3.8.5
 scikit-learn
 sentence-transformers==2.2.2
-transformers==4.6.0  # Pin to lighter version
+transformers==4.18.0  # Compatible with huggingface-hub>=0.4.0
 requests
 werkzeug
 gunicorn
