@@ -2,9 +2,9 @@ flask
 flask-cors
 spacy==3.7.0
 scikit-learn
-sentence-transformers==3.2.0  # Upgrade to the latest version
-transformers==4.40.0  # Upgrade to a newer, compatible version
-tokenizers==0.15.2  # Upgrade to match transformers
+sentence-transformers==3.2.0
+transformers==4.41.0  # Updated to meet sentence-transformers requirement
+tokenizers==0.15.2
 requests
 werkzeug
 gunicorn
