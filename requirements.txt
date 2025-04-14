@@ -1,6 +1,6 @@
 flask
 flask-cors
-spacy==3.7.0  # Downgrade for smaller size
+spacy==3.7.0
 scikit-learn
 sentence-transformers==2.2.2
 transformers==4.23.0
@@ -9,3 +9,5 @@ requests
 werkzeug
 gunicorn
 https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp311-cp311-linux_x86_64.whl
+pdfplumber==0.11.4
+python-docx==1.1.2  # Added for DOCX text extraction
