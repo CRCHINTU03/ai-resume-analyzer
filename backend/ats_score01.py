@@ -5,7 +5,7 @@ import re
 from collections import Counter
 from .models import load_nlp, load_sentence_transformer
 from .utils import preprocess_text
-from sentence_transformers import util  # Added for cos_sim
+from sentence_transformers import util
 
 def extract_keywords(text, nlp):
     doc = nlp(text.lower())
@@ -88,15 +88,12 @@ def extract_experience(text):
     return total_years
 
 def compute_ats_score(resume_text, job_text, nlp=None, sentence_model=None):
-    # Load models if not provided
     nlp = nlp or load_nlp()
     sentence_model = sentence_model or load_sentence_transformer()
 
-    # Preprocess the resume and job description text
     resume_text_processed = preprocess_text(resume_text)
     job_text_processed = preprocess_text(job_text)
 
-    # Extract features
     resume_keywords = extract_keywords(resume_text_processed, nlp)
     job_keywords = extract_keywords(job_text_processed, nlp)
     resume_skills = extract_skills(resume_text_processed, nlp)
@@ -104,19 +101,16 @@ def compute_ats_score(resume_text, job_text, nlp=None, sentence_model=None):
     resume_entities = extract_entities(resume_text_processed, nlp)
     job_entities = extract_entities(job_text_processed, nlp)
 
-    # Compute BERT semantic similarity
     resume_embedding = sentence_model.encode(resume_text, convert_to_tensor=True)
     job_embedding = sentence_model.encode(job_text, convert_to_tensor=True)
     bert_score = util.cos_sim(resume_embedding, job_embedding).item() * 100
 
-    # TF-IDF for keyword importance
     vectorizer = TfidfVectorizer()
     tfidf_matrix = vectorizer.fit_transform([job_text_processed])
     feature_names = vectorizer.get_feature_names_out()
     tfidf_scores = tfidf_matrix.toarray()[0]
     keyword_importance = dict(zip(feature_names, tfidf_scores))
 
-    # Missing keywords and skills
     missing_keywords = []
     for kw in job_keywords:
         if kw not in resume_keywords:
@@ -129,11 +123,9 @@ def compute_ats_score(resume_text, job_text, nlp=None, sentence_model=None):
 
     missing_entities = [ent for ent in job_entities if ent not in resume_entities]
 
-    # Keyword score
     tfidf_matrix = vectorizer.fit_transform([resume_text_processed, job_text_processed])
     keyword_score = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0] * 100
 
-    # Experience score
     resume_years = extract_experience(resume_text)
     job_years = extract_experience(job_text)
     if job_years > 0:
@@ -141,10 +133,8 @@ def compute_ats_score(resume_text, job_text, nlp=None, sentence_model=None):
     else:
         experience_score = 100 if resume_years > 0 else 50
 
-    # Weighted ATS score
     ats_score = (keyword_score * 0.35) + (bert_score * 0.25) + (skills_score * 0.25) + (experience_score * 0.15)
 
-    # Recommendations
     recommendations = []
     if missing_keywords:
         recommendations.append("Incorporate these high-priority keywords into your resume:")
