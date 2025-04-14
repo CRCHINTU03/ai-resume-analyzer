@@ -1,1 +1,0 @@
-web: NODE_ENV=production GENERATE_SOURCEMAP=false gunicorn app:app

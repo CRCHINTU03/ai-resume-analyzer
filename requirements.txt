@@ -1,6 +1,6 @@
 flask
 flask-cors
-spacy==3.7.0  # Slightly smaller
+spacy==3.7.0  # Downgrade for smaller size
 scikit-learn
 sentence-transformers==2.2.2
 transformers==4.23.0

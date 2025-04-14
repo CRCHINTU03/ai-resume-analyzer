@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ai-resume-analyzer
+    env: python
+    buildCommand: |
+      cd frontend && npm install && npm run build && cd ..
+      pip install -r requirements.txt
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT backend.app:app
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.12
+      - key: PORT
+        value: 10000

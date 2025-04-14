@@ -1,15 +1,10 @@
 import os
-import sys
 import logging
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from extract_text import extract_text
 from ats_score01 import compute_ats_score
-
-# Block unnecessary imports
-sys.modules['nltk'] = None
-sys.modules['sentencepiece'] = None
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a',
@@ -19,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Log dependency versions at startup
 def log_dependency_versions():
     import pkg_resources
-    dependencies = ['torch', 'spacy', 'sentence_transformers', 'transformers', 'torchvision', 'nltk', 'sentencepiece']
+    dependencies = ['torch', 'spacy', 'sentence_transformers', 'transformers']
     for dep in dependencies:
         try:
             version = pkg_resources.get_distribution(dep).version
@@ -29,34 +24,43 @@ def log_dependency_versions():
 
 log_dependency_versions()
 
-app = Flask(__name__, static_folder='../frontend/build/static', template_folder='../frontend/build')
+app = Flask(__name__, static_folder='frontend/build/static', template_folder='frontend/build')
 CORS(app)
 
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload size
 
-UPLOAD_FOLDER = 'Uploads'
+UPLOAD_FOLDER = 'uploads'
 CACHE_DIR = '/tmp/models'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Model loading functions
+# Lazy-load models
+nlp = None
+sentence_model = None
+
 def load_nlp():
-    import spacy
-    try:
-        logger.info("Downloading spaCy model 'en_core_web_sm'")
-        spacy.cli.download("en_core_web_sm")
-        return spacy.load("en_core_web_sm")
-    except Exception as e:
-        logger.error(f"Failed to load spaCy model: {str(e)}")
-        raise
+    global nlp
+    if nlp is None:
+        import spacy
+        try:
+            logger.info("Downloading spaCy model 'en_core_web_sm'")
+            spacy.cli.download("en_core_web_sm")
+            nlp = spacy.load("en_core_web_sm", disable=['parser', 'ner'])  # Disable unused components
+        except Exception as e:
+            logger.error(f"Failed to load spaCy model: {str(e)}")
+            raise
+    return nlp
 
 def load_sentence_transformer():
-    from sentence_transformers import SentenceTransformer
-    try:
-        logger.info("Downloading sentence-transformer model 'all-MiniLM-L6-v2'")
-        return SentenceTransformer("all-MiniLM-L6-v2", cache_dir=CACHE_DIR)
-    except Exception as e:
-        logger.error(f"Failed to load sentence-transformer model: {str(e)}")
-        raise
+    global sentence_model
+    if sentence_model is None:
+        from sentence_transformers import SentenceTransformer
+        try:
+            logger.info("Downloading sentence-transformer model 'all-MiniLM-L6-v2'")
+            sentence_model = SentenceTransformer("all-MiniLM-L6-v2", cache_dir=CACHE_DIR)
+        except Exception as e:
+            logger.error(f"Failed to load sentence-transformer model: {str(e)}")
+            raise
+    return sentence_model
 
 @app.route('/')
 def serve():
@@ -121,14 +125,14 @@ def upload():
             return jsonify({'error': 'Unable to extract text from job description'}), 400
 
         logger.info("Loading models and computing ATS score")
-        nlp = load_nlp()
-        sentence_model = load_sentence_transformer()
+        nlp_model = load_nlp()
+        sentence_model_instance = load_sentence_transformer()
 
         ats_result = compute_ats_score(
             resume_text,
             job_text,
-            nlp=nlp,
-            sentence_model=sentence_model
+            nlp=nlp_model,
+            sentence_model=sentence_model_instance
         )
 
         logger.info("Cleaning up temporary files")
