@@ -1,14 +1,15 @@
 import os
+import sys
 import logging
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import requests
-from bs4 import BeautifulSoup
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph
 from werkzeug.utils import secure_filename
 from extract_text import extract_text
 from ats_score01 import compute_ats_score
+
+# Block unnecessary imports
+sys.modules['nltk'] = None
+sys.modules['sentencepiece'] = None
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a',
@@ -28,18 +29,16 @@ def log_dependency_versions():
 
 log_dependency_versions()
 
-# Rest of app.py remains unchanged...
-
 app = Flask(__name__, static_folder='../frontend/build/static', template_folder='../frontend/build')
 CORS(app)
 
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload size
 
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = 'Uploads'
 CACHE_DIR = '/tmp/models'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Model loading functions (no imports at top level)
+# Model loading functions
 def load_nlp():
     import spacy
     try:
@@ -68,18 +67,6 @@ def serve():
 def serve_static(path):
     logger.info(f"Serving static file: {path}")
     return send_from_directory(app.static_folder, path)
-
-def scrape_job(url):
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        job_text = soup.find('div', class_='job-description') or soup.find('section', class_='description')
-        return job_text.get_text(strip=True) if job_text else "Unable to scrape job description."
-    except Exception as e:
-        logger.error(f"Error scraping URL {url}: {str(e)}")
-        return f"Error scraping URL: {str(e)}"
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -110,11 +97,9 @@ def upload():
             return jsonify({'error': 'Unable to extract text from resume'}), 400
 
         if job_url:
-            logger.info(f"Scraping job description from URL: {job_url}")
-            job_text = scrape_job(job_url)
-            if "Error" in job_text:
-                os.remove(resume_path)
-                return jsonify({'error': job_text}), 400
+            logger.error("URL scraping is disabled to reduce dependencies")
+            os.remove(resume_path)
+            return jsonify({'error': 'URL scraping is disabled'}), 400
         elif job_description_text:
             logger.info("Using job description text directly")
             job_text = job_description_text
@@ -154,7 +139,6 @@ def upload():
     except Exception as e:
         logger.error(f"Error in /upload: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))

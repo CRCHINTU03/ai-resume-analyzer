@@ -3,10 +3,9 @@ flask-cors
 spacy>=3.8.5
 scikit-learn
 sentence-transformers==2.2.2
-transformers==4.23.0  # Supports tokenizers>=0.13.0
-tokenizers==0.13.3    # Prebuilt wheel
+transformers==4.23.0
+tokenizers==0.13.3
 requests
 werkzeug
 gunicorn
 https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp311-cp311-linux_x86_64.whl
-beautifulsoup4
