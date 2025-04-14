@@ -1,9 +1,7 @@
-import spacy
+# backend/utils.py
 import os
 from pathlib import Path
-
-# Load the English model
-nlp = spacy.load("en_core_web_sm")
+from .models import load_nlp
 
 def preprocess_text(text):
     """
@@ -15,6 +13,7 @@ def preprocess_text(text):
     """
     if not isinstance(text, str) or not text.strip():
         return ""
+    nlp = load_nlp()  # Load model on-demand
     doc = nlp(text.lower())
     tokens = [token.lemma_ for token in doc if not token.is_stop and not token.is_punct and token.is_alpha]
     return " ".join(tokens)

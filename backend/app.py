@@ -1,12 +1,12 @@
+# backend/app.py
 import os
 import logging
-import sys
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from .extract_text import extract_text  # Relative import
-from .ats_score01 import compute_ats_score  # Relative import
-from .utils import *  # Relative import (adjust based on utils.py content)
+from .extract_text import extract_text
+from .ats_score01 import compute_ats_score
+from .models import load_nlp, load_sentence_transformer
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a',
@@ -32,37 +32,7 @@ CORS(app)
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload size
 
 UPLOAD_FOLDER = 'uploads'
-CACHE_DIR = '/tmp/models'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Lazy-load models
-nlp = None
-sentence_model = None
-
-def load_nlp():
-    global nlp
-    if nlp is None:
-        import spacy
-        try:
-            logger.info("Downloading spaCy model 'en_core_web_sm'")
-            spacy.cli.download("en_core_web_sm")
-            nlp = spacy.load("en_core_web_sm", disable=['parser', 'ner'])
-        except Exception as e:
-            logger.error(f"Failed to load spaCy model: {str(e)}")
-            raise
-    return nlp
-
-def load_sentence_transformer():
-    global sentence_model
-    if sentence_model is None:
-        from sentence_transformers import SentenceTransformer
-        try:
-            logger.info("Downloading sentence-transformer model 'all-MiniLM-L6-v2'")
-            sentence_model = SentenceTransformer("all-MiniLM-L6-v2", cache_dir=CACHE_DIR)
-        except Exception as e:
-            logger.error(f"Failed to load sentence-transformer model: {str(e)}")
-            raise
-    return sentence_model
 
 @app.route('/')
 def serve():
@@ -140,10 +110,15 @@ def upload():
         logger.info("Cleaning up temporary files")
         os.remove(resume_path)
 
+        logger.info(f"ATS result: {ats_result}")
         return jsonify(ats_result), 200
 
     except Exception as e:
         logger.error(f"Error in /upload: {str(e)}", exc_info=True)
+        if 'resume_path' in locals() and os.path.exists(resume_path):
+            os.remove(resume_path)
+        if 'job_desc_path' in locals() and os.path.exists(job_desc_path):
+            os.remove(job_desc_path)
         return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':

@@ -1,13 +1,13 @@
 flask
 flask-cors
 spacy==3.7.0
-scikit-learn
-sentence-transformers==2.2.2
-transformers==4.23.0
-tokenizers==0.13.3
-requests
-werkzeug
-gunicorn
-https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp311-cp311-linux_x86_64.whl
-pdfplumber==0.11.4
-python-docx==1.1.2  # Added for DOCX text extraction
+scikit-learn  # For TfidfVectorizer and cosine_similarity in ats_score01.py
+sentence-transformers==2.2.2  # For sentence_model in ats_score01.py
+transformers==4.23.0  # Required by sentence-transformers
+tokenizers==0.13.3  # Required by transformers
+requests  # Previously included, may be used elsewhere
+werkzeug  # For secure_filename
+gunicorn  # For Render deployment
+https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp311-cp311-linux_x86_64.whl  # CPU version of torch for sentence-transformers
+pdfplumber==0.11.4  # For extract_text.py
+python-docx==1.1.2  # For extract_text.py
