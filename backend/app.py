@@ -1,6 +1,7 @@
 # backend/app.py
 import os
 import logging
+import sys
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -8,10 +9,17 @@ from .extract_text import extract_text
 from .ats_score01 import compute_ats_score
 from .models import load_nlp, load_sentence_transformer
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a',
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# Set up logging to stderr (Render will capture this in logs)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stderr)]
+)
 logger = logging.getLogger(__name__)
+
+# Log at startup to confirm imports and initialization
+logger.info("Starting application...")
+logger.info("Imports completed successfully")
 
 # Log dependency versions at startup
 def log_dependency_versions():
@@ -22,7 +30,7 @@ def log_dependency_versions():
             version = pkg_resources.get_distribution(dep).version
             logger.info(f"Dependency {dep} version: {version}")
         except pkg_resources.DistributionNotFound:
-            logger.info(f"Dependency {dep} not installed")
+            logger.warning(f"Dependency {dep} not installed")
 
 log_dependency_versions()
 
@@ -33,6 +41,12 @@ app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload size
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Add a health check route for debugging
+@app.route('/health')
+def health():
+    logger.info("Health check endpoint called")
+    return jsonify({"status": "healthy"}), 200
 
 @app.route('/')
 def serve():
@@ -123,3 +137,5 @@ def upload():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
+
+logger.info("Application startup completed")
