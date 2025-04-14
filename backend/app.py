@@ -155,32 +155,6 @@ def upload():
         logger.error(f"Error in /upload: {str(e)}", exc_info=True)
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/download_report', methods=['POST'])
-def download_report():
-    try:
-        ats_result = request.json
-        if not ats_result:
-            logger.error("No ATS result provided for download")
-            return jsonify({'error': 'No analysis result provided'}), 400
-
-        pdf_path = os.path.join(UPLOAD_FOLDER, 'ats_report.pdf')
-        pdf = SimpleDocTemplate(pdf_path, pagesize=letter)
-        story = [
-            Paragraph(f"ATS Score: {ats_result['ats_score']}%"),
-            Paragraph(f"Skills Score: {ats_result['skills_score']}%"),
-            Paragraph(f"Experience Score: {ats_result['experience_score']}%"),
-            Paragraph("Recommendations:")
-        ]
-        for rec in ats_result['recommendations']:
-            story.append(Paragraph(rec))
-        pdf.build(story)
-
-        logger.info("Generated PDF report")
-        return send_file(pdf_path, as_attachment=True, download_name='ats_report.pdf')
-
-    except Exception as e:
-        logger.error(f"Error in /download_report: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Failed to generate report'}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
