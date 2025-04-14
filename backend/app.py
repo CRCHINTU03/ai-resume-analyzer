@@ -1,10 +1,12 @@
 import os
 import logging
+import sys
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from extract_text import extract_text
-from ats_score01 import compute_ats_score
+from .extract_text import extract_text  # Relative import
+from .ats_score01 import compute_ats_score  # Relative import
+from .utils import *  # Relative import (adjust based on utils.py content)
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, filename='app.log', filemode='a',
@@ -44,7 +46,7 @@ def load_nlp():
         try:
             logger.info("Downloading spaCy model 'en_core_web_sm'")
             spacy.cli.download("en_core_web_sm")
-            nlp = spacy.load("en_core_web_sm", disable=['parser', 'ner'])  # Disable unused components
+            nlp = spacy.load("en_core_web_sm", disable=['parser', 'ner'])
         except Exception as e:
             logger.error(f"Failed to load spaCy model: {str(e)}")
             raise
